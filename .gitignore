@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+data/dry_bean.csv
+data/X_train.npy
+data/X_test.npy
+data/y_train.npy
+data/y_test.npy
+data/feature_names.json
+data/dataset_source.txt
+results/*.png
+results/*.csv
+results/*.json
+results/*.txt
