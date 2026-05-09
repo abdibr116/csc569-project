@@ -63,20 +63,40 @@ csc569-project/
 
 ## Setup
 
-### 1. Create and activate a virtual environment
+### Option A: Docker Compose (recommended)
+
+No Python setup needed — just Docker.
+
+```bash
+# Full run (pop=50, gen=30, ~3-4 hours)
+docker compose up --build
+
+# Quick smoke run (~5 minutes)
+POP_SIZE=8 GENERATIONS=3 docker compose up --build
+
+# Custom configuration
+POP_SIZE=20 GENERATIONS=10 SEED=123 docker compose up --build
+
+# Force re-download the dataset
+docker compose run pipeline --pop-size 50 --generations 30 --refresh-data
+```
+
+Results appear in `data/`, `results/`, and `paper_sections/` on your host (mounted as volumes).
+
+### Option B: Local Python
+
+#### 1. Create and activate a virtual environment
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 2. Install dependencies
+#### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
-
-**Alpine Linux note:** If you are on Alpine/musl (no precompiled scikit-learn wheel), the existing `.venv` was bootstrapped from Alpine apk packages with native shared libraries in `.venv/lib_native/`. Activating the venv via `source .venv/bin/activate` automatically sets `LD_LIBRARY_PATH` to include that directory. If you recreate the venv on Alpine, you will need to repeat this process or install build tools (`apk add build-base gfortran openblas-dev`).
 
 ---
 
