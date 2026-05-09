@@ -1,0 +1,12 @@
+services:
+  pipeline:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./results:/app/results
+      - ./paper_sections:/app/paper_sections
+    environment:
+      - POP_SIZE=${POP_SIZE:-50}
+      - GENERATIONS=${GENERATIONS:-30}
+      - SEED=${SEED:-42}
+    command: ["--pop-size", "${POP_SIZE:-50}", "--generations", "${GENERATIONS:-30}", "--seed", "${SEED:-42}"]
