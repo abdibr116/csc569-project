@@ -217,7 +217,10 @@ def main() -> None:
     parser.add_argument("--mut-indpb", type=float, default=0.2)
     parser.add_argument("--tournament-size", type=int, default=3)
     parser.add_argument("--seed", type=int, default=RANDOM_SEED)
+    parser.add_argument("--results-dir", type=str, default=RESULTS_DIR)
     args = parser.parse_args()
+
+    os.makedirs(args.results_dir, exist_ok=True)
 
     print("=== Step 4: GP (GA) Optimization ===")
     print(
@@ -251,7 +254,7 @@ def main() -> None:
     print(f"Best params: {best_params}")
     print(f"Best fitness (CV F1 mean): {best_fitness:.4f}")
 
-    # Re-run 5-fold CV with best params for per-fold scores
+    # Re-run CV with best params for per-fold scores
     best_clf = RandomForestClassifier(
         **best_params, random_state=RANDOM_SEED, n_jobs=-1
     )
@@ -281,19 +284,19 @@ def main() -> None:
                 "seed": args.seed,
             },
         },
-        os.path.join(RESULTS_DIR, "gp_best_params.json"),
+        os.path.join(args.results_dir, "gp_best_params.json"),
     )
 
     # Logbook -> CSV
     logbook_df = pd.DataFrame(logbook)
-    logbook_df.to_csv(os.path.join(RESULTS_DIR, "gp_evolution.csv"), index=False)
-    print(f"Saved: {os.path.join(RESULTS_DIR, 'gp_evolution.csv')}")
+    logbook_df.to_csv(os.path.join(args.results_dir, "gp_evolution.csv"), index=False)
+    print(f"Saved: {os.path.join(args.results_dir, 'gp_evolution.csv')}")
 
     # Snapshots: keys must be JSON strings
     snapshots_serializable = {str(k): v for k, v in snapshots.items()}
     save_json(
         snapshots_serializable,
-        os.path.join(RESULTS_DIR, "gp_population_snapshots.json"),
+        os.path.join(args.results_dir, "gp_population_snapshots.json"),
     )
 
 

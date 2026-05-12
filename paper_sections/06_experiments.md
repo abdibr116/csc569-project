@@ -28,7 +28,7 @@ hyperparameters were targeted for optimization:
 | Hyperparameter      | Search Range                                | Type     |
 |---------------------|---------------------------------------------|----------|
 | `n_estimators`      | [50, 500] step 10                           | int      |
-| `max_features`      | {sqrt, log2, 0.3, 0.5, 0.7, 0.9}          | mixed    |
+| `max_features`      | {{sqrt, log2, 0.3, 0.5, 0.7, 0.9}}          | mixed    |
 | `max_depth`         | [3, 30] or None                             | int/None |
 | `min_samples_split` | [2, 20]                                     | int      |
 | `min_samples_leaf`  | [1, 10]                                     | int      |
@@ -41,7 +41,7 @@ Two baselines were established for comparison:
    `max_depth=None`, `min_samples_split=2`, `min_samples_leaf=1`). This represents the
    *before* state -- an untuned model used directly out of the box.
 2. **RandomizedSearchCV**: 50 random samples from the joint hyperparameter distribution,
-   evaluated with 5-fold stratified cross-validation, scoring on `f1_weighted`.
+   evaluated with 10-fold stratified cross-validation, scoring on `f1_weighted`.
 
 ## 6.4 Optimization Method (Genetic Algorithm)
 
@@ -49,21 +49,26 @@ A genetic algorithm was implemented using the DEAP library. Each individual in t
 population is encoded as a vector of five floats in [0, 1] which are decoded into the
 five RandomForest hyperparameter values. The evolutionary configuration was:
 
-- Population size: 50
-- Generations: 30
+- Population size: 8
+- Generations: 3
 - Crossover: blend (alpha=0.5), probability 0.7
 - Mutation: Gaussian (sigma=0.1, indpb=0.2), probability 0.2
 - Selection: tournament (size=3)
 - Elitism: top 2 individuals preserved each generation
 - Random seed: 42
 
-Each individual's fitness was its mean 5-fold cross-validated weighted F1 score on the
+Each individual's fitness was its mean 10-fold cross-validated weighted F1 score on the
 training split, computed using the same CV configuration as the RandomizedSearchCV
 baseline.
 
+The GP optimization was repeated with 2 independent random seeds (42, 123)
+to assess robustness. Each seed was run with identical GA configuration. The best
+seed's parameters were selected for final test-set evaluation, and results are
+reported as mean +/- std across all seeds.
+
 ## 6.5 Comparison Protocol
 
-All three methods used identical splits (80/20 stratified, seed 42), the same five-fold
+All three methods used identical splits (80/20 stratified, seed 42), the same 10-fold
 cross-validation, the same `f1_weighted` scoring metric, and the same random seed.
 Final test-set evaluation was performed by training each method's best model
 configuration on the full training set and predicting on the held-out test set.

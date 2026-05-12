@@ -11,7 +11,7 @@ import sys
 import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from utils import DATA_DIR, PAPER_DIR, RESULTS_DIR, load_json  # noqa: E402
+from utils import CV_FOLDS, DATA_DIR, PAPER_DIR, RESULTS_DIR, load_json  # noqa: E402
 
 
 def _read_dataset_source() -> str:
@@ -74,7 +74,7 @@ def section_06_experiments() -> str:
         )
     class_table = "\n".join(class_table_lines)
 
-    return f"""# 6. Experiments and Implementation
+    text = f"""# 6. Experiments and Implementation
 
 ## 6.1 Dataset
 
@@ -96,7 +96,7 @@ hyperparameters were targeted for optimization:
 | Hyperparameter      | Search Range                                | Type     |
 |---------------------|---------------------------------------------|----------|
 | `n_estimators`      | [50, 500] step 10                           | int      |
-| `max_features`      | {{sqrt, log2, 0.3, 0.5, 0.7, 0.9}}          | mixed    |
+| `max_features`      | {{{{sqrt, log2, 0.3, 0.5, 0.7, 0.9}}}}          | mixed    |
 | `max_depth`         | [3, 30] or None                             | int/None |
 | `min_samples_split` | [2, 20]                                     | int      |
 | `min_samples_leaf`  | [1, 10]                                     | int      |
@@ -109,7 +109,7 @@ Two baselines were established for comparison:
    `max_depth=None`, `min_samples_split=2`, `min_samples_leaf=1`). This represents the
    *before* state -- an untuned model used directly out of the box.
 2. **RandomizedSearchCV**: 50 random samples from the joint hyperparameter distribution,
-   evaluated with 5-fold stratified cross-validation, scoring on `f1_weighted`.
+   evaluated with {CV_FOLDS}-fold stratified cross-validation, scoring on `f1_weighted`.
 
 ## 6.4 Optimization Method (Genetic Algorithm)
 
@@ -125,17 +125,29 @@ five RandomForest hyperparameter values. The evolutionary configuration was:
 - Elitism: top {cfg['n_elites']} individuals preserved each generation
 - Random seed: {cfg['seed']}
 
-Each individual's fitness was its mean 5-fold cross-validated weighted F1 score on the
+Each individual's fitness was its mean {CV_FOLDS}-fold cross-validated weighted F1 score on the
 training split, computed using the same CV configuration as the RandomizedSearchCV
 baseline.
+"""
+    n_seeds = gp.get("n_seeds", 1)
+    if n_seeds > 1:
+        seeds_list = ", ".join(str(s["seed"]) for s in gp["all_seeds_summary"])
+        text += f"""
+The GP optimization was repeated with {n_seeds} independent random seeds ({seeds_list})
+to assess robustness. Each seed was run with identical GA configuration. The best
+seed's parameters were selected for final test-set evaluation, and results are
+reported as mean +/- std across all seeds.
+"""
 
+    text += f"""
 ## 6.5 Comparison Protocol
 
-All three methods used identical splits (80/20 stratified, seed 42), the same five-fold
+All three methods used identical splits (80/20 stratified, seed 42), the same {CV_FOLDS}-fold
 cross-validation, the same `f1_weighted` scoring metric, and the same random seed.
 Final test-set evaluation was performed by training each method's best model
 configuration on the full training set and predicting on the held-out test set.
 """
+    return text
 
 
 def section_07_results() -> str:
@@ -364,10 +376,10 @@ def section_09_challenges() -> str:
 
 ## 9.1 Computational cost
 
-Each fitness evaluation requires fitting and scoring a RandomForest five times
+Each fitness evaluation requires fitting and scoring a RandomForest {CV_FOLDS} times
 (once per CV fold). With a population of {cfg['pop_size']} and {cfg['generations']}
 generations, the upper bound on RandomForest fits is approximately
-{n_evals_upper} x 5 = {n_evals_upper * 5}. Elitism caches the top
+{n_evals_upper} x {CV_FOLDS} = {n_evals_upper * CV_FOLDS}. Elitism caches the top
 {cfg['n_elites']} unchanged individuals per generation, which trims the count
 further, but the dominant cost is still the cross-validated re-evaluation of every
 new offspring.

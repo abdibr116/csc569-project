@@ -64,42 +64,64 @@ CHECKLIST = [
 ]
 
 
+def _run_step(name: str, cmd: list[str]) -> None:
+    print(f"\n{'='*60}")
+    print(f"  STEP: {name}")
+    print(f"  CMD : {' '.join(cmd)}")
+    print(f"{'='*60}\n")
+    subprocess.run(cmd, check=True, cwd=PROJECT_ROOT, env=_child_env())
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pop-size", type=int, default=50)
     parser.add_argument("--generations", type=int, default=30)
     parser.add_argument("--refresh-data", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--seeds", type=int, nargs="+", default=None,
+        help="Run GP with multiple seeds and aggregate (e.g., --seeds 42 123 456 789 1024)",
+    )
     args = parser.parse_args()
 
     download_cmd = [sys.executable, "src/download_data.py"]
     if args.refresh_data:
         download_cmd.append("--refresh-data")
 
-    gp_cmd = [
-        sys.executable,
-        "src/gp_optimize.py",
-        "--pop-size", str(args.pop_size),
-        "--generations", str(args.generations),
-        "--seed", str(args.seed),
-    ]
-
-    steps = [
-        ("Download Dataset", download_cmd),
-        ("Preprocess", [sys.executable, "src/preprocess.py"]),
-        ("Run Baselines", [sys.executable, "src/baseline.py"]),
-        ("Run GP Optimization", gp_cmd),
-        ("Evaluate & Plot", [sys.executable, "src/evaluate.py"]),
-        ("Draft Paper Sections", [sys.executable, "src/draft_paper.py"]),
-    ]
-
     total_start = time.time()
-    for name, cmd in steps:
-        print(f"\n{'='*60}")
-        print(f"  STEP: {name}")
-        print(f"  CMD : {' '.join(cmd)}")
-        print(f"{'='*60}\n")
-        subprocess.run(cmd, check=True, cwd=PROJECT_ROOT, env=_child_env())
+
+    # Steps 1-3: always run once (deterministic)
+    _run_step("Download Dataset", download_cmd)
+    _run_step("Preprocess", [sys.executable, "src/preprocess.py"])
+    _run_step("Run Baselines", [sys.executable, "src/baseline.py"])
+
+    # Step 4: GP — single-seed or multi-seed
+    if args.seeds:
+        for seed in args.seeds:
+            gp_cmd = [
+                sys.executable, "src/gp_optimize.py",
+                "--pop-size", str(args.pop_size),
+                "--generations", str(args.generations),
+                "--seed", str(seed),
+                "--results-dir", os.path.join("results", f"seed_{seed}"),
+            ]
+            _run_step(f"Run GP Optimization (seed={seed})", gp_cmd)
+        # Step 4b: aggregate
+        agg_cmd = [sys.executable, "src/aggregate.py",
+                    "--seeds"] + [str(s) for s in args.seeds]
+        _run_step("Aggregate multi-seed results", agg_cmd)
+    else:
+        gp_cmd = [
+            sys.executable, "src/gp_optimize.py",
+            "--pop-size", str(args.pop_size),
+            "--generations", str(args.generations),
+            "--seed", str(args.seed),
+        ]
+        _run_step("Run GP Optimization", gp_cmd)
+
+    # Steps 5-6: evaluate and draft
+    _run_step("Evaluate & Plot", [sys.executable, "src/evaluate.py"])
+    _run_step("Draft Paper Sections", [sys.executable, "src/draft_paper.py"])
 
     total = time.time() - total_start
 

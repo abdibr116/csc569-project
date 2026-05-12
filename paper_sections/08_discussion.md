@@ -2,25 +2,25 @@
 
 ## 8.1 Did evolutionary search help?
 
-GP-optimized RF outperformed the untuned Default RF by -0.0004 in F1
-(weighted), or -0.05% in relative terms. Compared to RandomizedSearchCV,
-the GP-tuned model differed by +0.0037 (+0.41%). Whether the
+GP-optimized RF outperformed the untuned Default RF by +0.0011 in F1
+(weighted), or +0.12% in relative terms. Compared to RandomizedSearchCV,
+the GP-tuned model differed by +0.0029 (+0.32%). Whether the
 gain over RandomizedSearchCV is practically meaningful depends on the deployment
 context: for high-stakes or imbalanced classification tasks even a fraction of a
 percentage point can matter, while for many applications the gap is within noise.
 
 ## 8.2 Statistical significance
 
-The Wilcoxon signed-rank test (statistic=0.0000, p=0.0625) does not show a statistically significant difference between GP and RandomizedSearchCV at alpha = 0.05.
+The Wilcoxon signed-rank test (statistic=27.0000, p=1.0000) does not show a statistically significant difference between GP and RandomizedSearchCV at alpha = 0.05.
 
 ## 8.3 What configuration did GP converge to?
 
 The best individual decoded to:
 
-- `n_estimators` = 406
-- `max_features` = 0.5
-- `max_depth` = 18
-- `min_samples_split` = 11
+- `n_estimators` = 252
+- `max_features` = 0.7
+- `max_depth` = 15
+- `min_samples_split` = 5
 - `min_samples_leaf` = 1
 
 These values are consistent with the conventional wisdom of Random Forest tuning: a
@@ -30,12 +30,12 @@ parameters acts as a soft regularizer that limits overfitting on training folds.
 
 ## 8.4 Computational cost
 
-The Default RF took 3.6s to evaluate via 5-fold CV.
-RandomizedSearchCV (50 candidates) required 239.6s, while the genetic
-algorithm consumed 13904.4s. The GP cost is dominated by the
+The Default RF took 5.5s to evaluate via 5-fold CV.
+RandomizedSearchCV (50 candidates) required 413.0s, while the genetic
+algorithm consumed 497.1s. The GP cost is dominated by the
 population_size x generations x fold_count product. Whether this cost is
 justified depends on whether the resulting model will be reused -- a one-time
-investment that yields a permanent -0.05% F1 gain over the untuned
+investment that yields a permanent +0.12% F1 gain over the untuned
 baseline is straightforwardly worthwhile for production use, but matters less
 for short-lived experiments.
 
