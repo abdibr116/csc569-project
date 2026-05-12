@@ -12,3 +12,4 @@ results/*.png
 results/*.csv
 results/*.json
 results/*.txt
+results/seed_*/
