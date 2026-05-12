@@ -1,0 +1,18 @@
+services:
+  backend:
+    build: ./backend
+    volumes:
+      - ../data:/app/data:ro
+      - ../results:/app/results:ro
+      - ../paper_sections:/app/paper_sections:ro
+    environment:
+      - RESULTS_DIR=/app/results
+      - PAPER_DIR=/app/paper_sections
+      - DATA_DIR=/app/data
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    depends_on:
+      - backend
