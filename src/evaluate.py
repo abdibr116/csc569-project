@@ -277,12 +277,14 @@ def main() -> None:
         clf, y_pred, _fit_t = _train_predict_time(params, X_train, y_train, X_test)
         m = _metrics(y_test, y_pred)
         method_time = float(src.get("total_time_seconds", src.get("time_seconds", 0.0)))
-        cv_mean = float(src.get("f1_mean_across_seeds", src.get("cv_f1_mean", float("nan"))))
-        cv_std = float(src.get("f1_std_across_seeds", src.get("cv_f1_std", float("nan"))))
+        cv_mean = float(src.get("cv_f1_mean", float("nan")))
+        cv_std = float(src.get("cv_f1_std", float("nan")))
         n_seeds = int(src.get("n_seeds", 1))
         cv_label = f"{cv_mean:.4f} +/- {cv_std:.4f}"
         if n_seeds > 1:
-            cv_label += f" ({n_seeds} seeds)"
+            seed_mean = float(src["f1_mean_across_seeds"])
+            seed_std = float(src["f1_std_across_seeds"])
+            cv_label += f" [{n_seeds} seeds: {seed_mean:.4f} +/- {seed_std:.4f}]"
 
         rows.append({
             "Method": name,
