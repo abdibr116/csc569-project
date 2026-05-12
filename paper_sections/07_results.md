@@ -22,9 +22,9 @@ RandomizedSearchCV is included for reference; its F1 was 0.9188.
 
 | Method             |   Accuracy |   Precision |   Recall |   F1 (weighted) |   Δ F1 (weighted) vs Default | % F1 Improvement vs Default   |   Time (s) |
 |:-------------------|-----------:|------------:|---------:|----------------:|-----------------------------:|:------------------------------|-----------:|
-| Default RF         |     0.9207 |      0.9209 |   0.9207 |          0.9207 |                       0      | +0.00%                        |        5.5 |
-| RandomizedSearchCV |     0.9188 |      0.9189 |   0.9188 |          0.9188 |                      -0.0018 | -0.20%                        |      413   |
-| GP-Optimized       |     0.9218 |      0.922  |   0.9218 |          0.9217 |                       0.0011 | +0.12%                        |      497.1 |
+| Default RF         |     0.9207 |      0.9209 |   0.9207 |          0.9207 |                       0      | +0.00%                        |        5.7 |
+| RandomizedSearchCV |     0.9188 |      0.9189 |   0.9188 |          0.9188 |                      -0.0018 | -0.20%                        |      417.5 |
+| GP-Optimized       |     0.9218 |      0.922  |   0.9218 |          0.9217 |                       0.0011 | +0.12%                        |      312.3 |
 
 The grouped bar chart in `comparison_barplot.png` (Figure 2) visualizes these metrics
 side-by-side, and `time_comparison.png` (Figure 6) shows the corresponding wall-clock

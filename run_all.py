@@ -7,6 +7,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime
+import json
 import os
 import subprocess
 import sys
@@ -64,6 +66,15 @@ CHECKLIST = [
 ]
 
 
+def _write_progress(path: str | None, record: dict) -> None:
+    if not path:
+        return
+    record.setdefault("timestamp", datetime.datetime.utcnow().isoformat() + "Z")
+    with open(os.path.join(PROJECT_ROOT, path), "a") as f:
+        f.write(json.dumps(record) + "\n")
+        f.flush()
+
+
 def _run_step(name: str, cmd: list[str]) -> None:
     print(f"\n{'='*60}")
     print(f"  STEP: {name}")
@@ -82,7 +93,17 @@ def main() -> None:
         "--seeds", type=int, nargs="+", default=None,
         help="Run GP with multiple seeds and aggregate (e.g., --seeds 42 123 456 789 1024)",
     )
+    parser.add_argument("--progress-file", type=str, default=None,
+                        help="Path to JSONL progress file (relative to project root)")
     args = parser.parse_args()
+
+    pf = args.progress_file
+    seeds = args.seeds or [args.seed]
+
+    _write_progress(pf, {
+        "type": "experiment", "status": "started",
+        "config": {"pop_size": args.pop_size, "generations": args.generations, "seeds": seeds},
+    })
 
     download_cmd = [sys.executable, "src/download_data.py"]
     if args.refresh_data:
@@ -90,40 +111,66 @@ def main() -> None:
 
     total_start = time.time()
 
-    # Steps 1-3: always run once (deterministic)
-    _run_step("Download Dataset", download_cmd)
-    _run_step("Preprocess", [sys.executable, "src/preprocess.py"])
-    _run_step("Run Baselines", [sys.executable, "src/baseline.py"])
+    try:
+        # Steps 1-3: always run once (deterministic)
+        for step_name, cmd in [
+            ("download", download_cmd),
+            ("preprocess", [sys.executable, "src/preprocess.py"]),
+            ("baseline", [sys.executable, "src/baseline.py"]),
+        ]:
+            _write_progress(pf, {"type": "step", "step": step_name, "status": "running"})
+            _run_step(step_name.title(), cmd)
+            _write_progress(pf, {"type": "step", "step": step_name, "status": "completed"})
 
-    # Step 4: GP — single-seed or multi-seed
-    if args.seeds:
-        for seed in args.seeds:
+        # Step 4: GP — single-seed or multi-seed
+        if args.seeds:
+            for seed in args.seeds:
+                gp_cmd = [
+                    sys.executable, "src/gp_optimize.py",
+                    "--pop-size", str(args.pop_size),
+                    "--generations", str(args.generations),
+                    "--seed", str(seed),
+                    "--results-dir", os.path.join("results", f"seed_{seed}"),
+                ]
+                if pf:
+                    gp_cmd += ["--progress-file", pf]
+                _write_progress(pf, {"type": "step", "step": "gp", "status": "running", "seed": seed})
+                _run_step(f"GP Optimization (seed={seed})", gp_cmd)
+                _write_progress(pf, {"type": "step", "step": "gp", "status": "completed", "seed": seed})
+            _write_progress(pf, {"type": "step", "step": "aggregate", "status": "running"})
+            agg_cmd = [sys.executable, "src/aggregate.py",
+                        "--seeds"] + [str(s) for s in args.seeds]
+            _run_step("Aggregate multi-seed results", agg_cmd)
+            _write_progress(pf, {"type": "step", "step": "aggregate", "status": "completed"})
+        else:
             gp_cmd = [
                 sys.executable, "src/gp_optimize.py",
                 "--pop-size", str(args.pop_size),
                 "--generations", str(args.generations),
-                "--seed", str(seed),
-                "--results-dir", os.path.join("results", f"seed_{seed}"),
+                "--seed", str(args.seed),
             ]
-            _run_step(f"Run GP Optimization (seed={seed})", gp_cmd)
-        # Step 4b: aggregate
-        agg_cmd = [sys.executable, "src/aggregate.py",
-                    "--seeds"] + [str(s) for s in args.seeds]
-        _run_step("Aggregate multi-seed results", agg_cmd)
-    else:
-        gp_cmd = [
-            sys.executable, "src/gp_optimize.py",
-            "--pop-size", str(args.pop_size),
-            "--generations", str(args.generations),
-            "--seed", str(args.seed),
-        ]
-        _run_step("Run GP Optimization", gp_cmd)
+            if pf:
+                gp_cmd += ["--progress-file", pf]
+            _write_progress(pf, {"type": "step", "step": "gp", "status": "running", "seed": args.seed})
+            _run_step("GP Optimization", gp_cmd)
+            _write_progress(pf, {"type": "step", "step": "gp", "status": "completed", "seed": args.seed})
 
-    # Steps 5-6: evaluate and draft
-    _run_step("Evaluate & Plot", [sys.executable, "src/evaluate.py"])
-    _run_step("Draft Paper Sections", [sys.executable, "src/draft_paper.py"])
+        # Steps 5-6: evaluate and draft
+        for step_name, cmd in [
+            ("evaluate", [sys.executable, "src/evaluate.py"]),
+            ("draft_paper", [sys.executable, "src/draft_paper.py"]),
+        ]:
+            _write_progress(pf, {"type": "step", "step": step_name, "status": "running"})
+            _run_step(step_name.replace("_", " ").title(), cmd)
+            _write_progress(pf, {"type": "step", "step": step_name, "status": "completed"})
 
-    total = time.time() - total_start
+        total = time.time() - total_start
+        _write_progress(pf, {"type": "experiment", "status": "completed", "total_time_s": total})
+
+    except Exception as e:
+        total = time.time() - total_start
+        _write_progress(pf, {"type": "experiment", "status": "failed", "error": str(e), "total_time_s": total})
+        raise
 
     print(f"\n{'='*60}")
     print("  EXECUTION CHECKLIST")

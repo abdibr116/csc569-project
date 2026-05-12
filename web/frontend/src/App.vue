@@ -5,6 +5,14 @@
       <p class="subtitle">CSC 569 - Results Dashboard</p>
     </header>
 
+    <ExperimentPanel
+      :experiment="experiment"
+      @start="startExperiment"
+      @stop="stopExperiment"
+      @refresh="refreshResults"
+      @dismiss="dismissExperiment"
+    />
+
     <div v-if="loading" class="loading">Loading results...</div>
 
     <template v-else>
@@ -38,11 +46,12 @@ import ConfusionTab from './components/ConfusionTab.vue'
 import FeaturesTab from './components/FeaturesTab.vue'
 import SeedsTab from './components/SeedsTab.vue'
 import PaperTab from './components/PaperTab.vue'
+import ExperimentPanel from './components/ExperimentPanel.vue'
 
 const API = '/api'
 
 export default {
-  components: { SummaryCards, ComparisonTab, EvolutionTab, ConfusionTab, FeaturesTab, SeedsTab, PaperTab },
+  components: { SummaryCards, ComparisonTab, EvolutionTab, ConfusionTab, FeaturesTab, SeedsTab, PaperTab, ExperimentPanel },
   data() {
     return {
       loading: true,
@@ -64,36 +73,103 @@ export default {
       statistical: {},
       seeds: {},
       paperSections: [],
+      experiment: { status: 'idle' },
+      experimentPoller: null,
     }
   },
   async mounted() {
-    try {
-      const [comp, cfg, gp, evo, conf, feat, stat, seedData, paper] = await Promise.all([
-        fetch(`${API}/comparison`).then(r => r.json()),
-        fetch(`${API}/config`).then(r => r.json()),
-        fetch(`${API}/gp`).then(r => r.json()),
-        fetch(`${API}/evolution`).then(r => r.json()),
-        fetch(`${API}/confusion`).then(r => r.json()),
-        fetch(`${API}/features`).then(r => r.json()),
-        fetch(`${API}/statistical`).then(r => r.json()),
-        fetch(`${API}/seeds`).then(r => r.json()),
-        fetch(`${API}/paper`).then(r => r.json()),
-      ])
-      this.comparison = comp
-      this.config = cfg
-      this.gp = gp
-      this.evolution = evo
-      this.confusion = conf
-      this.features = feat
-      this.statistical = stat
-      this.seeds = seedData
-      this.paperSections = paper
-    } catch (e) {
-      console.error('Failed to load data:', e)
-    } finally {
-      this.loading = false
-    }
-  }
+    await this.loadResults()
+    await this.checkExperiment()
+  },
+  beforeUnmount() {
+    if (this.experimentPoller) clearInterval(this.experimentPoller)
+  },
+  methods: {
+    async loadResults() {
+      try {
+        const endpoints = ['comparison', 'config', 'gp', 'evolution', 'confusion', 'features', 'statistical', 'seeds', 'paper']
+        const results = await Promise.allSettled(
+          endpoints.map(e => fetch(`${API}/${e}`).then(r => r.ok ? r.json() : null))
+        )
+        const [comp, cfg, gp, evo, conf, feat, stat, seedData, paper] = results.map(r => r.status === 'fulfilled' ? r.value : null)
+        if (comp) this.comparison = comp
+        if (cfg) this.config = cfg
+        if (gp) this.gp = gp
+        if (evo) this.evolution = evo
+        if (conf) this.confusion = conf
+        if (feat) this.features = feat
+        if (stat) this.statistical = stat
+        if (seedData) this.seeds = seedData
+        if (paper) this.paperSections = paper
+      } catch (e) {
+        console.error('Failed to load results:', e)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async checkExperiment() {
+      try {
+        const res = await fetch(`${API}/experiment/status`)
+        const prev = this.experiment.status
+        this.experiment = await res.json()
+
+        if (this.experiment.status === 'running' && !this.experimentPoller) {
+          this.experimentPoller = setInterval(() => this.checkExperiment(), 3000)
+        }
+        if (this.experiment.status !== 'running' && this.experimentPoller) {
+          clearInterval(this.experimentPoller)
+          this.experimentPoller = null
+        }
+        if (prev === 'running' && this.experiment.status === 'completed') {
+          await this.loadResults()
+        }
+      } catch (e) {
+        console.error('Failed to check experiment:', e)
+      }
+    },
+
+    async startExperiment(config) {
+      try {
+        const res = await fetch(`${API}/experiment/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config),
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.detail || 'Failed to start')
+        }
+        await this.checkExperiment()
+      } catch (e) {
+        console.error('Start failed:', e)
+        alert('Failed to start experiment: ' + e.message)
+      }
+    },
+
+    async stopExperiment() {
+      if (!confirm('Stop the running experiment?')) return
+      try {
+        await fetch(`${API}/experiment/stop`, { method: 'POST' })
+        this.experiment = { status: 'idle' }
+      } catch (e) {
+        console.error('Stop failed:', e)
+      }
+    },
+
+    async refreshResults() {
+      this.loading = true
+      await this.loadResults()
+      this.experiment = { status: 'idle' }
+    },
+
+    async dismissExperiment() {
+      try {
+        await fetch(`${API}/experiment`, { method: 'DELETE' })
+      } catch (e) { /* ignore */ }
+      this.experiment = { status: 'idle' }
+    },
+  },
 }
 </script>
 

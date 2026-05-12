@@ -13,3 +13,4 @@ results/*.csv
 results/*.json
 results/*.txt
 results/seed_*/
+results/.experiment_progress.jsonl

@@ -3,13 +3,16 @@ services:
     build: ./backend
     restart: unless-stopped
     volumes:
-      - ../data:/app/data:ro
-      - ../results:/app/results:ro
-      - ../paper_sections:/app/paper_sections:ro
+      - ../data:/app/data:rw
+      - ../results:/app/results:rw
+      - ../paper_sections:/app/paper_sections:rw
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - RESULTS_DIR=/app/results
       - PAPER_DIR=/app/paper_sections
       - DATA_DIR=/app/data
+      - HOST_PROJECT_DIR=${HOST_PROJECT_DIR:-/data/src/rana/csc569-project}
+      - PIPELINE_IMAGE=${PIPELINE_IMAGE:-csc569-project-pipeline}
     networks:
       - default
 
