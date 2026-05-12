@@ -276,10 +276,13 @@ def main() -> None:
         print(f"--- Evaluating {name} ---")
         clf, y_pred, _fit_t = _train_predict_time(params, X_train, y_train, X_test)
         m = _metrics(y_test, y_pred)
-        # "time_seconds" in stored results = method-level training/search time
-        method_time = float(src.get("time_seconds", 0.0))
-        cv_mean = float(src.get("cv_f1_mean", float("nan")))
-        cv_std = float(src.get("cv_f1_std", float("nan")))
+        method_time = float(src.get("total_time_seconds", src.get("time_seconds", 0.0)))
+        cv_mean = float(src.get("f1_mean_across_seeds", src.get("cv_f1_mean", float("nan"))))
+        cv_std = float(src.get("f1_std_across_seeds", src.get("cv_f1_std", float("nan"))))
+        n_seeds = int(src.get("n_seeds", 1))
+        cv_label = f"{cv_mean:.4f} +/- {cv_std:.4f}"
+        if n_seeds > 1:
+            cv_label += f" ({n_seeds} seeds)"
 
         rows.append({
             "Method": name,
@@ -287,7 +290,7 @@ def main() -> None:
             "Precision": m["precision"],
             "Recall": m["recall"],
             "F1 (weighted)": m["f1"],
-            "CV F1 Mean +/- Std": f"{cv_mean:.4f} +/- {cv_std:.4f}",
+            "CV F1 Mean +/- Std": cv_label,
             "Time (s)": method_time,
         })
         times[name] = method_time
@@ -320,33 +323,45 @@ def main() -> None:
     print(table.to_string(index=False))
 
     # Wilcoxon signed-rank test on per-fold CV scores
+    def _wilcoxon_safe(gp_scores: list, rs_scores: list) -> dict:
+        try:
+            if np.allclose(gp_scores, rs_scores):
+                raise ValueError("identical")
+            stat, p_value = wilcoxon(gp_scores, rs_scores)
+            return {"statistic": float(stat), "p_value": float(p_value),
+                    "significant_at_0.05": bool(p_value < 0.05)}
+        except ValueError:
+            return {"statistic": None, "p_value": 1.0, "significant_at_0.05": False,
+                    "note": "no difference detected"}
+
     gp_cv_scores = list(gp_data["cv_scores"])
     rs_cv_scores = list(rs_result["cv_scores"])
-    print(f"GP CV scores: {gp_cv_scores}")
-    print(f"RS CV scores: {rs_cv_scores}")
-    try:
-        if np.allclose(gp_cv_scores, rs_cv_scores):
-            raise ValueError("Score arrays are identical")
-        stat, p_value = wilcoxon(gp_cv_scores, rs_cv_scores)
-        test_result = {
-            "test": "Wilcoxon signed-rank",
-            "gp_scores": gp_cv_scores,
-            "rs_scores": rs_cv_scores,
-            "statistic": float(stat),
-            "p_value": float(p_value),
-            "significant_at_0.05": bool(p_value < 0.05),
-        }
-    except ValueError as e:
-        print(f"  [Wilcoxon] {e} -- reporting no difference detected.")
-        test_result = {
-            "test": "Wilcoxon signed-rank",
-            "gp_scores": gp_cv_scores,
-            "rs_scores": rs_cv_scores,
-            "statistic": None,
-            "p_value": 1.0,
-            "significant_at_0.05": False,
-            "note": "no difference detected (identical score arrays)",
-        }
+    is_multi_seed = "all_seeds_summary" in gp_data
+
+    primary = _wilcoxon_safe(gp_cv_scores, rs_cv_scores)
+    test_result: dict[str, Any] = {
+        "test": "Wilcoxon signed-rank",
+        "n_folds": len(gp_cv_scores),
+        "gp_scores": gp_cv_scores,
+        "rs_scores": rs_cv_scores,
+        **primary,
+    }
+
+    if is_multi_seed:
+        per_seed_tests = []
+        per_seed_cv = gp_data.get("per_seed_cv_scores", {})
+        for seed_str, scores in per_seed_cv.items():
+            res = _wilcoxon_safe(scores, rs_cv_scores)
+            per_seed_tests.append({"seed": int(seed_str), **res})
+        sig_count = sum(1 for t in per_seed_tests if t["significant_at_0.05"])
+        test_result["per_seed_tests"] = per_seed_tests
+        test_result["seeds_significant_count"] = sig_count
+        test_result["n_seeds"] = gp_data["n_seeds"]
+        test_result["f1_mean_across_seeds"] = gp_data["f1_mean_across_seeds"]
+        test_result["f1_std_across_seeds"] = gp_data["f1_std_across_seeds"]
+        print(f"Multi-seed Wilcoxon: {sig_count}/{len(per_seed_tests)} seeds significant at 0.05")
+
+    print(f"Primary Wilcoxon: stat={primary.get('statistic')}, p={primary.get('p_value'):.4f}")
     save_json(test_result, os.path.join(RESULTS_DIR, "statistical_test.json"))
 
     # Classification report for GP model

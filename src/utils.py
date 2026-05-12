@@ -14,7 +14,7 @@ RESULTS_DIR: str = "results"
 PAPER_DIR: str = "paper_sections"
 TARGET_COLUMN: str = "Class"
 TEST_SIZE: float = 0.2
-CV_FOLDS: int = 5
+CV_FOLDS: int = 10
 SCORING_METRIC: str = "f1_weighted"
 
 for _d in (DATA_DIR, RESULTS_DIR, PAPER_DIR):

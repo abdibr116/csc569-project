@@ -83,6 +83,18 @@ docker compose run pipeline --pop-size 50 --generations 30 --refresh-data
 
 Results appear in `data/`, `results/`, and `paper_sections/` on your host (mounted as volumes).
 
+**Multi-seed mode (5 GP seeds in parallel via Docker):**
+
+```bash
+# Full multi-seed experiment (~4 hours, 5 seeds run in parallel)
+docker compose --profile multi up --build
+
+# Customize population/generations
+POP_SIZE=30 GENERATIONS=15 docker compose --profile multi up --build
+```
+
+This runs setup once, then launches 5 GP containers in parallel (seeds 42, 123, 456, 789, 1024), aggregates results, and produces final evaluation.
+
 ### Option B: Local Python
 
 #### 1. Create and activate a virtual environment
@@ -126,7 +138,8 @@ python run_all.py --pop-size 8 --generations 3
 |------|---------|-------------|
 | `--pop-size N` | 50 | GA population size |
 | `--generations G` | 30 | Number of GA generations |
-| `--seed S` | 42 | Random seed for reproducibility |
+| `--seed S` | 42 | Random seed (single-seed mode) |
+| `--seeds S1 S2 ...` | none | Run GP with multiple seeds and aggregate results |
 | `--refresh-data` | off | Force re-download/regenerate the dataset |
 
 **Examples:**
@@ -137,6 +150,9 @@ python run_all.py --pop-size 20 --generations 10
 
 # Full run with a different seed
 python run_all.py --seed 123
+
+# Multi-seed experiment (5 seeds, sequential, ~20 hours)
+python run_all.py --seeds 42 123 456 789 1024
 
 # Force re-download the dataset from UCI
 python run_all.py --refresh-data
