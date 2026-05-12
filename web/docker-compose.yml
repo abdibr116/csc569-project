@@ -1,6 +1,7 @@
 services:
   backend:
     build: ./backend
+    restart: unless-stopped
     volumes:
       - ../data:/app/data:ro
       - ../results:/app/results:ro
@@ -9,10 +10,24 @@ services:
       - RESULTS_DIR=/app/results
       - PAPER_DIR=/app/paper_sections
       - DATA_DIR=/app/data
+    networks:
+      - default
 
   frontend:
     build: ./frontend
-    ports:
-      - "${WEB_PORT:-3000}:80"
+    restart: unless-stopped
     depends_on:
       - backend
+    networks:
+      - default
+      - traefik-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.csc569.rule=Host(`csc569.al-ibrahim.info`)"
+      - "traefik.http.routers.csc569.entrypoints=websecure"
+      - "traefik.http.routers.csc569.tls.certresolver=letsencrypt"
+      - "traefik.http.services.csc569.loadbalancer.server.port=80"
+
+networks:
+  traefik-network:
+    external: true
