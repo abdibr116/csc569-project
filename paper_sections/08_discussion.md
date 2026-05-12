@@ -30,9 +30,9 @@ parameters acts as a soft regularizer that limits overfitting on training folds.
 
 ## 8.4 Computational cost
 
-The Default RF took 5.5s to evaluate via 5-fold CV.
-RandomizedSearchCV (50 candidates) required 413.0s, while the genetic
-algorithm consumed 497.1s. The GP cost is dominated by the
+The Default RF took 5.7s to evaluate via 5-fold CV.
+RandomizedSearchCV (50 candidates) required 417.5s, while the genetic
+algorithm consumed 312.3s. The GP cost is dominated by the
 population_size x generations x fold_count product. Whether this cost is
 justified depends on whether the resulting model will be reused -- a one-time
 investment that yields a permanent +0.12% F1 gain over the untuned

@@ -130,6 +130,7 @@ def run_evolution(
     mut_indpb: float,
     tournament_size: int,
     seed: int,
+    progress_callback: Any = None,
 ) -> tuple[list, tools.Logbook, tools.HallOfFame, dict[int, list[dict]]]:
     random.seed(seed)
     np.random.seed(seed)
@@ -164,6 +165,8 @@ def run_evolution(
     record = stats.compile(pop)
     logbook.record(gen=0, nevals=len(pop), **record)
     print(logbook.stream)
+    if progress_callback:
+        progress_callback(gen=0, total_gen=n_generations, nevals=len(pop), record=record)
 
     if 0 in snapshot_gens:
         snapshots[0] = [decode_individual(ind) for ind in pop]
@@ -198,6 +201,8 @@ def run_evolution(
         record = stats.compile(pop)
         logbook.record(gen=gen, nevals=len(invalids), **record)
         print(logbook.stream)
+        if progress_callback:
+            progress_callback(gen=gen, total_gen=n_generations, nevals=len(invalids), record=record)
 
         if gen in snapshot_gens:
             snapshots[gen] = [decode_individual(ind) for ind in pop]
@@ -218,6 +223,7 @@ def main() -> None:
     parser.add_argument("--tournament-size", type=int, default=3)
     parser.add_argument("--seed", type=int, default=RANDOM_SEED)
     parser.add_argument("--results-dir", type=str, default=RESULTS_DIR)
+    parser.add_argument("--progress-file", type=str, default=None)
     args = parser.parse_args()
 
     os.makedirs(args.results_dir, exist_ok=True)
@@ -231,6 +237,24 @@ def main() -> None:
     X_train, _, y_train, _, _, _ = load_data()
 
     start = time.time()
+
+    def _on_generation(gen: int, total_gen: int, nevals: int, record: dict) -> None:
+        if not args.progress_file:
+            return
+        import datetime, json as _json
+        rec = {
+            "type": "generation", "seed": args.seed,
+            "gen": gen, "total_gen": total_gen, "nevals": nevals,
+            "fitness_max": float(record["max"]),
+            "fitness_avg": float(record["avg"]),
+            "fitness_std": float(record["std"]),
+            "elapsed_s": time.time() - start,
+            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        }
+        with open(args.progress_file, "a") as f:
+            f.write(_json.dumps(rec) + "\n")
+            f.flush()
+
     pop, logbook, hof, snapshots = run_evolution(
         X_train,
         y_train,
@@ -244,6 +268,7 @@ def main() -> None:
         mut_indpb=args.mut_indpb,
         tournament_size=args.tournament_size,
         seed=args.seed,
+        progress_callback=_on_generation,
     )
     elapsed = time.time() - start
     print(f"GP elapsed: {elapsed:.1f}s")

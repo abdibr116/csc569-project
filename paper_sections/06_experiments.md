@@ -61,11 +61,6 @@ Each individual's fitness was its mean 10-fold cross-validated weighted F1 score
 training split, computed using the same CV configuration as the RandomizedSearchCV
 baseline.
 
-The GP optimization was repeated with 2 independent random seeds (42, 123)
-to assess robustness. Each seed was run with identical GA configuration. The best
-seed's parameters were selected for final test-set evaluation, and results are
-reported as mean +/- std across all seeds.
-
 ## 6.5 Comparison Protocol
 
 All three methods used identical splits (80/20 stratified, seed 42), the same 10-fold
