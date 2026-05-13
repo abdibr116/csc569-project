@@ -104,8 +104,8 @@ export default {
       error: null,
       form: {
         pop_size: 50,
-        generations: 30,
-        seedsText: '42, 123, 456, 789, 1024',
+        generations: 15,
+        seedsText: '42, 123, 456',
       },
       allSteps: ['download', 'preprocess', 'baseline', 'gp', 'aggregate', 'evaluate', 'draft_paper'],
     }
