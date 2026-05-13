@@ -124,6 +124,9 @@ def main() -> None:
 
         # Step 4: GP — single-seed or multi-seed
         if args.seeds:
+            # Launch all seeds in parallel
+            _write_progress(pf, {"type": "step", "step": "gp", "status": "running", "seeds": list(args.seeds)})
+            processes = []
             for seed in args.seeds:
                 gp_cmd = [
                     sys.executable, "src/gp_optimize.py",
@@ -133,10 +136,24 @@ def main() -> None:
                     "--results-dir", os.path.join("results", f"seed_{seed}"),
                 ]
                 if pf:
-                    gp_cmd += ["--progress-file", pf]
-                _write_progress(pf, {"type": "step", "step": "gp", "status": "running", "seed": seed})
-                _run_step(f"GP Optimization (seed={seed})", gp_cmd)
-                _write_progress(pf, {"type": "step", "step": "gp", "status": "completed", "seed": seed})
+                    gp_cmd += ["--progress-file", os.path.join(PROJECT_ROOT, pf)]
+                print(f"\n  Launching GP seed={seed} in parallel")
+                proc = subprocess.Popen(gp_cmd, cwd=PROJECT_ROOT, env=_child_env())
+                processes.append((seed, proc))
+
+            # Wait for all seeds to finish
+            failed = []
+            for seed, proc in processes:
+                proc.wait()
+                if proc.returncode != 0:
+                    failed.append(seed)
+                    print(f"  [WARN] GP seed={seed} exited with code {proc.returncode}")
+                else:
+                    print(f"  GP seed={seed} completed")
+            if failed:
+                raise RuntimeError(f"GP failed for seed(s): {failed}")
+            _write_progress(pf, {"type": "step", "step": "gp", "status": "completed", "seeds": list(args.seeds)})
+
             _write_progress(pf, {"type": "step", "step": "aggregate", "status": "running"})
             agg_cmd = [sys.executable, "src/aggregate.py",
                         "--seeds"] + [str(s) for s in args.seeds]

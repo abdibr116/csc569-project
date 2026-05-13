@@ -341,8 +341,8 @@ def _fmt_duration(s: float) -> str:
 
 class ExperimentConfig(BaseModel):
     pop_size: int = Field(default=50, ge=2, le=200)
-    generations: int = Field(default=30, ge=1, le=100)
-    seeds: list[int] = Field(default=[42, 123, 456, 789, 1024], min_length=1, max_length=10)
+    generations: int = Field(default=15, ge=1, le=100)
+    seeds: list[int] = Field(default=[42, 123, 456], min_length=1, max_length=10)
 
 
 @app.get("/api/experiment/status")
