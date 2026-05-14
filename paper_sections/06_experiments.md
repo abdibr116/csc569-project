@@ -49,8 +49,8 @@ A genetic algorithm was implemented using the DEAP library. Each individual in t
 population is encoded as a vector of five floats in [0, 1] which are decoded into the
 five RandomForest hyperparameter values. The evolutionary configuration was:
 
-- Population size: 8
-- Generations: 3
+- Population size: 50
+- Generations: 10
 - Crossover: blend (alpha=0.5), probability 0.7
 - Mutation: Gaussian (sigma=0.1, indpb=0.2), probability 0.2
 - Selection: tournament (size=3)
@@ -60,6 +60,11 @@ five RandomForest hyperparameter values. The evolutionary configuration was:
 Each individual's fitness was its mean 10-fold cross-validated weighted F1 score on the
 training split, computed using the same CV configuration as the RandomizedSearchCV
 baseline.
+
+The GP optimization was repeated with 2 independent random seeds (42, 123)
+to assess robustness. Each seed was run with identical GA configuration. The best
+seed's parameters were selected for final test-set evaluation, and results are
+reported as mean +/- std across all seeds.
 
 ## 6.5 Comparison Protocol
 
