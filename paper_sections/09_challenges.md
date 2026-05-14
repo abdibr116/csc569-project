@@ -3,9 +3,9 @@
 ## 9.1 Computational cost
 
 Each fitness evaluation requires fitting and scoring a RandomForest 10 times
-(once per CV fold). With a population of 8 and 3
+(once per CV fold). With a population of 50 and 10
 generations, the upper bound on RandomForest fits is approximately
-32 x 10 = 320. Elitism caches the top
+550 x 10 = 5500. Elitism caches the top
 2 unchanged individuals per generation, which trims the count
 further, but the dominant cost is still the cross-validated re-evaluation of every
 new offspring.
@@ -30,7 +30,7 @@ GA and the outer loop estimating generalization.
 
 Population size, number of generations, mutation rate, and crossover probability
 all influence the search trajectory. The values used here (population
-8, generations 3) are reasonable defaults but
+50, generations 10) are reasonable defaults but
 were not themselves tuned; a deeper study would treat the GA configuration as a
 second-level meta-optimization problem.
 
